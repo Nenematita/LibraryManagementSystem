@@ -1,71 +1,129 @@
-# Library Management System
+-- =====================
+-- 1. CREATE DATABASE
+-- =====================
+CREATE DATABASE LibraryDB;
+GO
+USE LibraryDB;
+GO
 
-## Overview
-This is a **Library Management System** implemented using **SQL Server (T-SQL)**.  
-It is a mock project designed for academic purposes (finals submission) and demonstrates the use of **database creation, table relationships, CRUD operations, and reporting queries**.
+-- =====================
+-- 2. CREATE TABLES
+-- =====================
 
-The system manages:
+-- Authors Table
+CREATE TABLE Authors (
+    AuthorID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Country NVARCHAR(50)
+);
 
-- **Authors**: Information about book authors  
-- **Books**: Catalog of books in the library  
-- **Members**: Library members who borrow books  
-- **Staff**: Library staff members  
-- **Borrowings**: Tracks which member borrowed which book and when
+-- Books Table
+CREATE TABLE Books (
+    BookID INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(150) NOT NULL,
+    AuthorID INT FOREIGN KEY REFERENCES Authors(AuthorID),
+    Genre NVARCHAR(50),
+    Quantity INT DEFAULT 1
+);
 
----
+-- Members Table
+CREATE TABLE Members (
+    MemberID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Email NVARCHAR(100),
+    Phone NVARCHAR(15),
+    JoinDate DATE DEFAULT GETDATE()
+);
 
-## Database Structure
+-- Staff Table
+CREATE TABLE Staff (
+    StaffID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100),
+    Position NVARCHAR(50),
+    Email NVARCHAR(100)
+);
 
-### Tables
+-- Borrowings Table
+CREATE TABLE Borrowings (
+    BorrowID INT IDENTITY(1,1) PRIMARY KEY,
+    MemberID INT FOREIGN KEY REFERENCES Members(MemberID),
+    BookID INT FOREIGN KEY REFERENCES Books(BookID),
+    BorrowDate DATE DEFAULT GETDATE(),
+    ReturnDate DATE
+);
 
-| Table      | Description |
-|-----------|-------------|
-| Authors   | Stores author information (AuthorID, Name, Country) |
-| Books     | Stores books (BookID, Title, AuthorID, Genre, Quantity) |
-| Members   | Stores library members (MemberID, Name, Email, Phone, JoinDate) |
-| Staff     | Stores library staff (StaffID, Name, Position, Email) |
-| Borrowings| Tracks book borrowing (BorrowID, MemberID, BookID, BorrowDate, ReturnDate) |
+-- =====================
+-- 3. INSERT SAMPLE DATA
+-- =====================
 
----
+-- Authors
+INSERT INTO Authors (Name, Country) VALUES
+('J.K. Rowling', 'UK'),
+('George Orwell', 'UK'),
+('Harper Lee', 'USA');
 
-## Files
+-- Books
+INSERT INTO Books (Title, AuthorID, Genre, Quantity) VALUES
+('Harry Potter and the Philosopher''s Stone', 1, 'Fantasy', 5),
+('1984', 2, 'Dystopian', 3),
+('To Kill a Mockingbird', 3, 'Fiction', 4);
 
-- `create_tables.sql` – Contains all `CREATE DATABASE` and `CREATE TABLE` statements  
-- `insert_data.sql` – Contains sample `INSERT` statements to populate tables  
-- `queries.sql` – Contains CRUD operations and advanced reporting queries (e.g., most borrowed books, overdue books)  
+-- Members
+INSERT INTO Members (Name, Email, Phone) VALUES
+('Alice Smith', 'alice@example.com', '1234567890'),
+('Bob Johnson', 'bob@example.com', '0987654321');
 
----
+-- Staff
+INSERT INTO Staff (Name, Position, Email) VALUES
+('Librarian John', 'Head Librarian', 'john@library.com'),
+('Assistant Mary', 'Assistant Librarian', 'mary@library.com');
 
-## Features / Queries
+-- Borrowings
+INSERT INTO Borrowings (MemberID, BookID, BorrowDate, ReturnDate) VALUES
+(1, 1, '2026-02-01', NULL),
+(2, 2, '2026-02-05', '2026-02-10');
 
-- View all books with author names  
-- Add, update, and delete records  
-- Track borrowed books and overdue books  
-- Generate reports such as most borrowed books  
+-- =====================
+-- 4. CRUD & REPORT QUERIES
+-- =====================
 
----
+-- View all books with authors
+SELECT b.BookID, b.Title, a.Name AS Author, b.Genre, b.Quantity
+FROM Books b
+JOIN Authors a ON b.AuthorID = a.AuthorID;
 
-## How to Use
+-- Add a new book
+INSERT INTO Books (Title, AuthorID, Genre, Quantity)
+VALUES ('Animal Farm', 2, 'Political Satire', 2);
 
-1. Open **SQL Server Management Studio (SSMS)**.  
-2. Create a new query and paste the SQL scripts in the following order:
-   1. `create_tables.sql`  
-   2. `insert_data.sql`  
-   3. `queries.sql`  
-3. Execute the scripts.  
-4. The database `LibraryDB` with all tables, sample data, and queries will be ready.  
+-- Update book quantity
+UPDATE Books
+SET Quantity = Quantity + 2
+WHERE BookID = 1;
 
----
+-- Delete a member
+DELETE FROM Members
+WHERE MemberID = 2;
 
-## Notes
+-- Books currently borrowed
+SELECT m.Name AS Member, b.Title AS Book, br.BorrowDate
+FROM Borrowings br
+JOIN Members m ON br.MemberID = m.MemberID
+JOIN Books b ON br.BookID = b.BookID
+WHERE br.ReturnDate IS NULL;
 
-- This project uses **T-SQL (SQL Server syntax)**. Some syntax (like `IDENTITY` for auto-increment and `GETDATE()` for current date) may need adjustment for other SQL systems.  
-- The project is intended for learning and demonstration purposes only.  
+-- Most borrowed books
+SELECT b.Title, COUNT(*) AS TimesBorrowed
+FROM Borrowings br
+JOIN Books b ON br.BookID = b.BookID
+GROUP BY b.Title
+ORDER BY TimesBorrowed DESC;
 
----
-
-## Author
-
-- [Your Name]  
-- Academic Project / Finals Submission  
+-- Members with overdue books (more than 14 days)
+SELECT m.Name, b.Title, br.BorrowDate, DATEDIFF(DAY, br.BorrowDate, GETDATE()) AS DaysBorrowed
+FROM Borrowings br
+JOIN Members m ON br.MemberID = m.MemberID
+JOIN Books b ON br.BookID = b.BookID
+WHERE br.ReturnDate IS NULL
+AND DATEDIFF(DAY, br.BorrowDate, GETDATE()) > 14;
 
